@@ -99,7 +99,8 @@ class Device():
         return nexthop, self.is_directly_connected
 
     def raw_iface(self, output):
-        raw_iface = re.findall('directly connected,\s+(\S+)', output)
+        pattern = r'(?:directly connected, via |is directly connected, )([A-Za-z]+\d+(?:/\d+)*)'
+        raw_iface = list(set(re.findall(pattern, output)))
         return raw_iface
 
     def detect_iface(self, nexthop, vrf):
@@ -111,7 +112,7 @@ class Device():
         print(output)
         raw_iface = self.raw_iface(output)
         print('raw_iface = ', raw_iface)
-        iface = raw_iface[0][-1].strip(',')
+        iface = raw_iface[0].strip(',')
         return iface
     
     def detect_p2p_iface(self, ip):
