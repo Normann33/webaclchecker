@@ -99,7 +99,7 @@ class Device():
         return nexthop, self.is_directly_connected
 
     def raw_iface(self, output):
-        raw_iface = re.findall('(directly connected) (\S+|\s+)', output)
+        raw_iface = re.findall('(directly connected,\s+(\S+)', output)
         return raw_iface
 
     def detect_iface(self, nexthop, vrf):
