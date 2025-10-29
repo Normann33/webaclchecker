@@ -5,3 +5,4 @@ flask_session/
 *.pem
 *.log
 testrun.py
+nohup.out
