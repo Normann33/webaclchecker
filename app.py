@@ -177,4 +177,4 @@ def about():
 
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, ssl_context=('ac.net.rts-cert.pem', 'ac.net.rts-key.pem'))
+    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True, ssl_context=('ac.net.rts-cert.pem', 'ac.net.rts-key.pem'))
