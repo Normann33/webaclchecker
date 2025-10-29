@@ -1,0 +1,7 @@
+modules/__pycache__/
+modules/config.py
+configs/
+flask_session/
+*.pem
+*.log
+testrun.py
