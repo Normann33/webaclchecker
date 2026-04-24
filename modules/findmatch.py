@@ -36,7 +36,15 @@ def find_match(acl, x, src, dst, dst_port, prot):
     for line in acl:
         acl_src, acl_dst = l1.acl_addr(line)
         try:
-            if x in line and prot in line and check_ip(src, acl_src) and check_ip(dst, acl_dst) and 'established' not in line and (l1.check_port(line, dst_port) == True or ('eq' not in line and 'range' not in line)) and 'established' not in line:
+            if x not in line:
+                continue
+            elif prot not in line:
+                continue
+            elif check_ip(src, acl_src) == False:
+                continue
+            elif check_ip(dst, acl_dst) == False:
+                continue
+            elif 'established' not in line and (l1.check_port(line, dst_port) == True or ('eq' not in line and 'range' not in line)) and 'established' not in line:
                 return line 
                 break
             elif x in line and ' ip ' in line and src in acl_src and dst in acl_dst:

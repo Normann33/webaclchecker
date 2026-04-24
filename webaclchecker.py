@@ -17,7 +17,7 @@ from modules.asa import Asa
 import time
 
 # startTime = datetime.now()
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.info('webaclchecker imported')
 
 cipher_suite = Fernet(SECRET_KEY)
