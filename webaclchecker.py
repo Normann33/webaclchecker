@@ -112,7 +112,10 @@ class Device():
         print(output)
         raw_iface = self.raw_iface(output)
         print('raw_iface = ', raw_iface)
-        iface = raw_iface[0].strip(',')
+        if type(raw_iface[0]) is tuple:
+            iface = raw_iface[0][1].strip(',')
+        else:
+            iface = raw_iface[0].strip(',')
         return iface
     
     def detect_p2p_iface(self, ip):
