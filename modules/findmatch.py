@@ -36,7 +36,7 @@ def check_ip(ip, network):
 
 def find_match(acl, x, src, dst, dst_port, prot):
 # Ищем совпадения в access-list-e, x - permit or deny
-    logger.debug('find_match started')
+    logger.info('find_match started')
     for line in acl:
         acl_src, acl_dst = l1.acl_addr(line)
         try:
