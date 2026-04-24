@@ -38,7 +38,10 @@ def find_match(acl, x, src, dst, dst_port, prot):
 # Ищем совпадения в access-list-e, x - permit or deny
     logger.info('find_match started')
     for line in acl:
-        acl_src, acl_dst = l1.acl_addr(line)
+        if 'permit' in line or 'deny' in line:
+            acl_src, acl_dst = l1.acl_addr(line)
+        else:
+            continue
         try:
             if x not in line:
                 continue
