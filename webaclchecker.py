@@ -156,7 +156,10 @@ class Arista (Device):
         return self.addr_raw
 
     def get_nexthop(self, addr_raw):
-        nexthop = addr_raw[1]
+        try:
+            nexthop = addr_raw[1]
+        except:
+            nexthop = None
         return nexthop
 
     def acl_command(self, aclname):
