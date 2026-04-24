@@ -79,6 +79,7 @@ class Device():
         else:
             output = self.show_vrf(ip, self.vrf)
         addr_raw = self.get_addr_raw(output)
+        logger.debug(f'detect_next_hop addr_raw: {addr_raw}')
         for i in addr_raw:
             if 'Null' in i:
                 nexthop = None

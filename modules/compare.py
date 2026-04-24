@@ -5,13 +5,13 @@ from modules.findmatch import find_match
 logger = logging.getLogger(__name__)
 
 def compare(acl, src, dst, dst_port, prot):
-    logger.info('compare started')
+    logger.debug('compare started')
     global _acl
     _acl = acl
     permit = find_match(acl, 'permit', src, dst, dst_port, prot)
-    logger.info(f'permit line is: {permit}')
+    logger.debug(f'permit line is: {permit}')
     deny = find_match(acl, 'deny', src, dst, dst_port, prot)
-    logger.info(f'deny line is: {deny}')
+    logger.debug(f'deny line is: {deny}')
     if int(permit.split()[0]) < int(deny.split()[0]):
         return f'PASSED,  {permit}'
     elif int(permit.split()[0]) > int(deny.split()[0]):
