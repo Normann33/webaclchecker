@@ -1,6 +1,9 @@
+import logging
 import re
 import ipaddress
 from modules.portreplace import port_replace
+
+logger = logging.getLogger(__name__)
 
 addr = ipaddress.ip_address # Слегка сократим имена функций
 net = ipaddress.ip_network
@@ -22,6 +25,7 @@ class LineSplit:
         port_line = ''
         ip_mask_pattern = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2})')
         ip_addresses = ip_mask_pattern.findall(_line)
+        logger.info(f'linesplit ip_addresses {ip_addresses}')
         results = []
         for match in ip_addresses:
             if match[0] and match[1]:
@@ -33,6 +37,7 @@ class LineSplit:
                     print('DEBUG convert_to_cidr: Не могу разобрать строку', line)      
             elif match[2]:  # Формат CIDR
                 results.append(match[2])
+        logger.info(f'linesplit results {results}')
         try:
             acl_src = net(results[0])
             acl_dst = net(results[1])
