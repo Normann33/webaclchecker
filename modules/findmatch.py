@@ -34,7 +34,10 @@ def check_ip(ip, network):
 def find_match(acl, x, src, dst, dst_port, prot):
 # Ищем совпадения в access-list-e, x - permit or deny
     for line in acl:
-        acl_src, acl_dst = l1.acl_addr(line)
+        if 'permit' in line or 'deny' in line:
+            acl_src, acl_dst = l1.acl_addr(line)
+        else:
+            continue
         try:
             if x in line and prot in line and check_ip(src, acl_src) and check_ip(dst, acl_dst) and 'established' not in line and (l1.check_port(line, dst_port) == True or ('eq' not in line and 'range' not in line)) and 'established' not in line:
                 return line 
