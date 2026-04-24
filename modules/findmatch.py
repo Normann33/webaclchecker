@@ -42,7 +42,7 @@ def find_match(acl, x, src, dst, dst_port, prot):
         try:
             if x not in line:
                 continue
-            elif prot not in line:
+            elif prot not in line or ' ip ' not in line:
                 continue
             elif check_ip(src, acl_src) == False:
                 continue
