@@ -1,6 +1,9 @@
+import logging
 from modules.linesplit import LineSplit
 import ipaddress
 import traceback
+
+logger = logging.getLogger(__name__)
 
 addr = ipaddress.ip_address
 net = ipaddress.ip_network
@@ -33,6 +36,7 @@ def check_ip(ip, network):
 
 def find_match(acl, x, src, dst, dst_port, prot):
 # Ищем совпадения в access-list-e, x - permit or deny
+    logger.debug('find_match started')
     for line in acl:
         acl_src, acl_dst = l1.acl_addr(line)
         try:
@@ -45,14 +49,16 @@ def find_match(acl, x, src, dst, dst_port, prot):
             elif check_ip(dst, acl_dst) == False:
                 continue
             elif 'established' not in line and (l1.check_port(line, dst_port) == True or ('eq' not in line and 'range' not in line)) and 'established' not in line:
+                logger.info(f'Matched line: {line}')
                 return line 
                 break
             elif x in line and ' ip ' in line and src in acl_src and dst in acl_dst:
+                logger.info(f'Matched line: {line}')
                 return line 
                 break
         except Exception:
             traceback.print_exc()
-            print('    DEBUG: find_match Не могу разобрать строку ', line)
+            logger.error(f'Не могу разобрать строку {line}')
             pass
     else:
         line = '99999 deny ip any any'
