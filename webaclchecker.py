@@ -3,6 +3,7 @@
 
 # from datetime import datetime
 import re
+import logging
 from netmiko import ConnectHandler
 from cryptography.fernet import Fernet
 from modules.config import SECRET_KEY, ENABLE_KEY
@@ -16,6 +17,8 @@ from modules.asa import Asa
 import time
 
 # startTime = datetime.now()
+logger = logging.getLogger()
+logger.info('webaclchecker imported')
 
 cipher_suite = Fernet(SECRET_KEY)
 
@@ -27,6 +30,7 @@ class Version:
 
     @staticmethod
     def detect_version():
+        logger.info('detect_version started')
         vtext = ssh_connect.send_command('show version').split('\n')[:2]
         vtext = ''.join(vtext)
         if 'NX-OS' in vtext:
@@ -193,11 +197,6 @@ class Nexus (Device):
         p2p_iface = output[0]
         return p2p_iface
     
-# username = ''
-# password = ''
-
-
-
 
 first_hop_vrf = 'default'
 

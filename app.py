@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import logging
+from logging_config import setup_logging
+setup_logging('app.log', level=logging.INFO)
+logger = logging.getLogger()
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_session import Session
@@ -39,6 +43,15 @@ socketio = SocketIO(app, message_queue='redis://localhost:6379/0', async_mode='t
 
 celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(app.config)
+
+from celery.signals import setup_logging as celery_setup_logging
+
+@celery_setup_logging.connect
+def on_celery_setup_logging(**kwargs):
+    # Импортируем внутри, чтобы избежать проблем с порядком загрузки модулей
+    from logging_config import setup_logging
+    # Настраиваем логирование именно для процесса воркера
+    setup_logging('app.log', level=logging.INFO)
 
 addr = ipaddress.ip_address # Слегка сократим имена функций
 net = ipaddress.ip_network
@@ -177,4 +190,4 @@ def about():
 
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True, ssl_context=('ac.net.rts-cert.pem', 'ac.net.rts-key.pem'))
+    socketio.run(app, host='0.0.0.0', port=5001, allow_unsafe_werkzeug=True, ssl_context=('ac.net.rts-cert.pem', 'ac.net.rts-key.pem'))
