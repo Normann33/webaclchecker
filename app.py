@@ -21,7 +21,7 @@ from tacacs_plus.client import TACACSClient
 from tacacs_plus.flags import TAC_PLUS_ACCT_FLAG_START, TAC_PLUS_ACCT_FLAG_WATCHDOG, TAC_PLUS_ACCT_FLAG_STOP
 from datetime import timedelta, datetime
 from cryptography.fernet import Fernet
-import webaclchecker
+import webaclchecker_old
 from modules import validate
 from modules import config
 
@@ -92,7 +92,7 @@ def on_join(data):
 @celery.task
 def run_webaclchecker(username, password, prot, src, dst, dst_port, gw, vrf, task_id):
     
-    for data in webaclchecker.run(username, password,
+    for data in webaclchecker_old.run(username, password,
                 prot, addr(src), addr(dst), dst_port, gw, vrf):
         print(f'Отправка данных: {data}')  # Для отладки
         socketio.emit('task_update', data, to=task_id, namespace='/task')

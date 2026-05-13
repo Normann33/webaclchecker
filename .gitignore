@@ -6,3 +6,4 @@ flask_session/
 *.log
 testrun.py
 nohup.out
+*.pyc
