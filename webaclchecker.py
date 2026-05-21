@@ -3,6 +3,7 @@
 
 # from datetime import datetime
 import re
+import os
 import logging
 # from netmiko import ConnectHandler
 from cryptography.fernet import Fernet
@@ -18,11 +19,16 @@ from modules.devices import *
 from modules.normalise import normalise
 from modules.compare import compare
 from modules.asa import Asa
+from dotenv import load_dotenv
 import time
 
 start = time.perf_counter()
 
 logger = logging.getLogger(__name__)
+load_dotenv()
+
+username = os.getenv('CISCOUSER')
+password = os.getenv('CISCOPASS')
 
 # cipher_suite = Fernet(SECRET_KEY)
 
@@ -40,14 +46,15 @@ def find_host_name(connector):
 
 enable = '123' # Temporary!!!
 dstnexthop = '' # Temporary!!!
+
 vrf = 'default' # Temporary!!!
 src = '' # Temporary!!!
 dst = '' # Temporary!!!
-dst_port = ''# Temporary!!!
+dst_port = '22'# Temporary!!!
 prot = 'tcp'# Temporary!!!
-first_host = '127.0.0.1'
+gw = '127.0.0.1'
 
-def run(src, vrf, host):
+def run(username, password, prot, src, dst, dst_port, gw, vrf):
     results = []
     while True:
         print('running...')
@@ -57,12 +64,12 @@ def run(src, vrf, host):
         p2p_iface = ''
         
         with NetmikoConnector(
-            host=host,
-            username='',
-            password='',
+            host=gw,
+            username=username,
+            password=password,
             secret=enable,
             device_type='cisco_ios',
-            port='22'
+            port='4022'
         ) as connector:
             
             version = Version(connector)
@@ -142,11 +149,11 @@ def run(src, vrf, host):
             is_first_hop = False
             v = Vrf(connector, p2p_iface)
             result_index += 1
-        host = nexthost
+        gw = nexthost
         # exit()
 
 if __name__ == '__main__':
-    for result in run(src, vrf, first_host):
+    for result in run(username, password, prot, src, dst, dst_port, gw, vrf):
         print(result)
         end = time.perf_counter()
         print(f"⏱ Выполнено за {end - start:.3f} сек")
