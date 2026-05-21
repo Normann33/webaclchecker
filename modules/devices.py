@@ -104,8 +104,9 @@ class Device():
         return 'IOS device'
 
 class Arista (Device):
-    def __init__(self, ip):
+    def __init__(self, connector: NetmikoConnector, ip):
         super().__init__()
+        self.connector = connector
         self.ip=ip
 
     def raw_iface(self, output):
@@ -129,8 +130,9 @@ class Arista (Device):
 
 
 class Nexus (Device):
-    def __init__(self, ip):
+    def __init__(self, connector: NetmikoConnector, ip):
         super().__init__()
+        self.connector = connector
         self.ip = ip
     def __str__(self):
         return 'Nexus device'
