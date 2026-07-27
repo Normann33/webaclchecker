@@ -53,13 +53,37 @@ class Device():
             print (addr_raw, nexthop)
         return nexthop, self.is_directly_connected
 
+    # def raw_iface(self, output):
+    #     pattern = re.compile(
+    #         r'(?:directly connected, via |is directly connected, )(\S+)', 
+    #         re.IGNORECASE
+    #     )
+    #     raw_iface = list(set(re.findall(pattern, output)))
+    #     return raw_iface
+    
+    import re
+
     def raw_iface(self, output):
+        # Универсальный паттерн для поиска интерфейсов Cisco
+        # Ищет ключевые слова 'connected' или 'via', за которыми после пробелов 
+        # идет известное имя интерфейса (с учетом сокращений) и его номер.
         pattern = re.compile(
-            r'(?:directly connected, via |is directly connected, )(\S+)', 
+            r'(?:connected|via)\s+(?:interface\s+)?'
+            r'([a-z]{2,}(?:-[a-z]+)?\d+(?:[\./\d+]+)?(?:\s+\d+)?)',
             re.IGNORECASE
         )
-        raw_iface = list(set(re.findall(pattern, output)))
-        return raw_iface
+        
+        # Использование set для автоматического удаления дубликатов
+        interfaces = set()
+        
+        # Итерация по всем совпадениям через finditer
+        for match in re.finditer(pattern, output):
+            # Очищаем имя от возможных случайных символов на концах (пробелы)
+            iface_name = match.group(1).strip()
+            interfaces.add(iface_name)
+            
+        return list(interfaces)
+
 
     def detect_iface(self, nexthop, vrf):
         iface = ''
