@@ -31,6 +31,7 @@ app.secret_key = 'bb235a52f4a656b6fc68e94ded0cbb51'
 app.permanent_session_lifetime = timedelta(minutes=15)  # Установите время таймаута (например, 15 минут)
 app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/1'
 app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/1'
+app.config['CELERY_TASK_DEFAULT_QUEUE'] = 'dev'
 app.config.from_object(config)
 cipher_suite = Fernet(app.config['SECRET_KEY'])
 tacacs_key = cipher_suite.decrypt(app.config['TACACS_KEY']).decode()
