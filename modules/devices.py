@@ -61,8 +61,6 @@ class Device():
     #     raw_iface = list(set(re.findall(pattern, output)))
     #     return raw_iface
     
-    import re
-
     def raw_iface(self, output):
         # Универсальный паттерн для поиска интерфейсов Cisco
         # Ищет ключевые слова 'connected' или 'via', за которыми после пробелов 

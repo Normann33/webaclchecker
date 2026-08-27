@@ -29,8 +29,8 @@ app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.secret_key = 'bb235a52f4a656b6fc68e94ded0cbb51'
 app.permanent_session_lifetime = timedelta(minutes=15)  # Установите время таймаута (например, 15 минут)
-app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/1'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/1'
 app.config.from_object(config)
 cipher_suite = Fernet(app.config['SECRET_KEY'])
 tacacs_key = cipher_suite.decrypt(app.config['TACACS_KEY']).decode()
@@ -39,7 +39,7 @@ Session(app)
 cli = TACACSClient('194.247.148.131', 49, tacacs_key, timeout=10, family=socket.AF_INET)
 
 CORS(app,resources={r'/*':{'origins':'*'}})
-socketio = SocketIO(app, message_queue='redis://localhost:6379/0', async_mode='threading', cors_allowed_origins='*')
+socketio = SocketIO(app, message_queue='redis://localhost:6379/1', async_mode='threading', cors_allowed_origins='*')
 
 celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(app.config)
