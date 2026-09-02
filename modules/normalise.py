@@ -22,9 +22,12 @@ def normalise(acl, ssh_connect):
                 obj_group_names.append(i.group(1))
             obj_groups = {}
             for i in obj_group_names:
-                objgroup_items_raw = ssh_connect.send_command(f'show object-group name {i}').replace('host', '255.255.255.255')
+                try:
+                    objgroup_items_raw = ssh_connect.send_command(f'show object-group {i}').replace('host', '255.255.255.255')
+                except:
+                    objgroup_items_raw = ssh_connect.send_command(f'show object-group name {i}').replace('host', '255.255.255.255')
                 objgroup_items_raw = host_replace(objgroup_items_raw)
-                objgroup_items_raw = (re.findall('(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', objgroup_items_raw))
+                objgroup_items_raw = (re.findall(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', objgroup_items_raw))
                 objgroup_items = []
                 x = 0
                 for j in range(int(len(objgroup_items_raw)/2)):
