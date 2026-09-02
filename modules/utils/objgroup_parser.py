@@ -39,13 +39,11 @@ def objgroup_parse(cisco_output):
                 objgroup_items.append(objgroup_data)
     return objgroup_items
 
-print(objgroup_parse(cisco_output))
 
-parsed_objgroup = objgroup_parse(cisco_output)
+if __name__ == '__main__':
+    print(objgroup_parse(cisco_output))
 
-for i in parsed_objgroup:
-    for key, value in i.items():
-        print(key, value)
+
 
 
 
