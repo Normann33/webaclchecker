@@ -17,7 +17,7 @@ def objgroup_parse(cisco_output):
     
     
     for line in cisco_output.split('\n'):
-        if 'Description' in line.lower():
+        if 'description' in line.lower():
             continue
         else:
             line = line.replace('host', '255.255.255.255')
