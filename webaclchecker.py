@@ -144,7 +144,10 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
                 return results
             
             # Detect management ip of next hop
-            nexthost = findmgmt(dstnexthop)
+            try:
+                nexthost = findmgmt(dstnexthop)
+            except Exception as e:
+                yield {'index': result_index, 'endmessage': e}
             yield {'index': result_index, 'nexthop': nexthost}
             is_first_hop = False
             v = Vrf(connector, p2p_iface)
