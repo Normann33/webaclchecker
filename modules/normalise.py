@@ -1,6 +1,7 @@
 import re
 from modules.hostreplace import host_replace
 from modules.objgroupreplace import obj_group_replace
+from modules.utils.objgroup_parser import objgroup_parse
 
 
 def normalise(acl, ssh_connect):
@@ -22,25 +23,21 @@ def normalise(acl, ssh_connect):
                 obj_group_names.append(i.group(1))
             obj_groups = {}
             for i in obj_group_names:
-                objgroup_items_raw = ssh_connect.send_command(f'show object-group name {i}').replace('host', '255.255.255.255')
-                objgroup_items_raw = host_replace(objgroup_items_raw)
-                objgroup_items_raw = (re.findall('(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', objgroup_items_raw))
-                objgroup_items = []
-                x = 0
-                for j in range(int(len(objgroup_items_raw)/2)):
-                    objgroup_items.append(' '.join(objgroup_items_raw[x:x+2]))
-                    x += 2
+                objgroup_items_raw = ssh_connect.send_command(f'show object-group {i}')
+                if 'invalid' in objgroup_items_raw.lower():
+                    objgroup_items_raw = ssh_connect.send_command(f'show object-group name {i}')
+                objgroup_items = objgroup_parse(objgroup_items_raw)
                 obj_groups[i] = objgroup_items
             temp_acl = []
             if len(obj_group_names) == 1:
                 for item in objgroup_items:
-                    acl_clean.append(obj_group_replace(line, obj_group_names[0], item).replace('object-group', ''))
+                    acl_clean.append(obj_group_replace(line, obj_group_names[0], ''.join(f"{item['ipaddr']} {item['netmask']}")).replace('object-group', ''))
             else:
                 for item in objgroup_items:
-                    temp_acl.append(obj_group_replace(line, obj_group_names[0], item))
+                    temp_acl.append(obj_group_replace(line, obj_group_names[0], ''.join(f"{item['ipaddr']} {item['netmask']}")).replace('object-group', ''))
                 for i in temp_acl:
                     for item in objgroup_items:
-                        acl_clean.append(obj_group_replace(i, obj_group_names[1], item).replace('object-group', ''))
+                        acl_clean.append(obj_group_replace(i, obj_group_names[1], ''.join(f"{item['ipaddr']} {item['netmask']}")).replace('object-group', ''))
         else:
             acl_clean.append(line.strip('\n'))
     return acl_clean
