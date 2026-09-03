@@ -5,6 +5,7 @@ flask_session/
 *.pem
 *.log
 testrun.py
+test*.py
 nohup.out
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -145,7 +146,7 @@ celerybeat.pid
 # Environments
 .env
 .envrc
-.venv
+.venv*
 env/
 venv/
 ENV/
