@@ -1,21 +1,9 @@
 import re
-import ipaddress
 
-cisco_output = '''Network object group BGP
- Description Upstream Provider Interfaces
- 109.239.134.28 255.255.255.252
- 217.67.185.56 255.255.255.252
- 46.46.155.112 255.255.255.252
- 46.46.155.116 255.255.255.252
- host 172.16.35.110
- '''
+cisco_output = ''
 
 def objgroup_parse(cisco_output):
     objgroup_items = []
-    # objgroup_item_counter = 1
-    # objgroup_dict['items'] = {}
-    
-    
     for line in cisco_output.split('\n'):
         if 'description' in line.lower():
             continue
