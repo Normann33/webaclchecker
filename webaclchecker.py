@@ -69,7 +69,7 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
             password=password,
             secret=enable,
             device_type='cisco_ios',
-            port='2222'
+            port='22'
         ) as connector:
             
             version = Version(connector)
