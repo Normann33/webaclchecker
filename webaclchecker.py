@@ -56,11 +56,11 @@ gw = '127.0.0.1'
 
 def run(username, password, prot, src, dst, dst_port, gw, vrf):
     results = []
+    result_index = 0
     while True:
         print('running...')
         is_first_hop = False
         dstnexthop = '' # Temporary!!!
-        result_index = 0
         p2p_iface = ''
         
         with NetmikoConnector(
