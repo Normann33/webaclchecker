@@ -126,10 +126,10 @@ class Device():
         return 'IOS device'
 
 class Arista (Device):
-    def __init__(self, connector: NetmikoConnector, ip):
+    def __init__(self, connector: NetmikoConnector, *args):
         super().__init__()
         self.connector = connector
-        self.ip=ip
+        # self.ip=ip
 
     def raw_iface(self, output):
         raw_iface = re.findall('(directly connected,) (\S+|\s+)', output)
@@ -152,10 +152,10 @@ class Arista (Device):
 
 
 class Nexus (Device):
-    def __init__(self, connector: NetmikoConnector, ip):
+    def __init__(self, connector: NetmikoConnector, *args):
         super().__init__()
         self.connector = connector
-        self.ip = ip
+        # self.ip = ip
     def __str__(self):
         return 'Nexus device'
     

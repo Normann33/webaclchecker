@@ -54,13 +54,14 @@ dst_port = '22'# Temporary!!!
 prot = 'tcp'# Temporary!!!
 gw = '127.0.0.1'
 
+
 def run(username, password, prot, src, dst, dst_port, gw, vrf):
     results = []
     result_index = 0
+    dstnexthop = '' # Temporary!!!
     while True:
         print('running...')
         is_first_hop = False
-        dstnexthop = '' # Temporary!!!
         p2p_iface = ''
         
         with NetmikoConnector(
