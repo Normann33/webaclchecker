@@ -15,9 +15,9 @@ class Version:
         vtext = ''.join(vtext)
         # return vtext
         if 'NX-OS' in vtext:
-            return Nexus(Device)
+            return Nexus(self.connector)
         elif 'Arista' in vtext:
-            return Arista(Device)
+            return Arista(self.connector)
         # elif 'Adaptive Security Appliance' in vtext:
         #     return Asa(ssh_connect, host_ip)
         else:

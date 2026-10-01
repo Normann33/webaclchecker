@@ -127,7 +127,7 @@ class Device():
 
 class Arista (Device):
     def __init__(self, connector: NetmikoConnector, *args):
-        super().__init__()
+        super().__init__(connector)
         self.connector = connector
         # self.ip=ip
 
@@ -153,7 +153,7 @@ class Arista (Device):
 
 class Nexus (Device):
     def __init__(self, connector: NetmikoConnector, *args):
-        super().__init__()
+        super().__init__(connector)
         self.connector = connector
         # self.ip = ip
     def __str__(self):
