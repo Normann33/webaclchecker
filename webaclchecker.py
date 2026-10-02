@@ -63,102 +63,114 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
         print('running...')
         is_first_hop = False
         p2p_iface = ''
-        
-        with NetmikoConnector(
-            host=gw,
-            username=username,
-            password=password,
-            secret=enable,
-            device_type='cisco_ios',
-            port='22',
-            global_delay_factor=2,
-        ) as connector:
-            
-            version = Version(connector)
-            device = version.detect_version()
-            
-            hostname_find_start = time.perf_counter()
-            is_enabled, hostname = find_host_name(connector)
-            if is_enabled == False:
-                connector.enable()
-                print(str(connector.find_prompt()))
-            yield {'index': result_index,'hostname': hostname}
-            print(hostname)
-            hostname_find_end = time.perf_counter()
-            print(f"⏱ find_host_name Выполнено за {hostname_find_end - hostname_find_start:.3f} сек")
-            
-            # is_first_hop = False
-            if is_first_hop == False:
-                p2p_iface = device.detect_p2p_iface(dstnexthop)
-                print(p2p_iface)
+        try:
+            with NetmikoConnector(
+                host=gw,
+                username=username,
+                password=password,
+                secret=enable,
+                device_type='cisco_ios',
+                port='22',
+                global_delay_factor=2,
+            ) as connector:
+                
+                version = Version(connector)
+                device = version.detect_version()
+                
+                hostname_find_start = time.perf_counter()
+                is_enabled, hostname = find_host_name(connector)
+                if is_enabled == False:
+                    connector.enable()
+                    print(str(connector.find_prompt()))
+                yield {'index': result_index,'hostname': hostname}
+                print(hostname)
+                hostname_find_end = time.perf_counter()
+                print(f"⏱ find_host_name Выполнено за {hostname_find_end - hostname_find_start:.3f} сек")
+                
+                # is_first_hop = False
+                if is_first_hop == False:
+                    p2p_iface = device.detect_p2p_iface(dstnexthop)
+                    print(p2p_iface)
+                    v = Vrf(connector, p2p_iface)
+                    vrf = v.detect_vrf()
+                yield {'index': result_index,'vrf': vrf}
+
+                # Detect source interface
+                nexthop, idc = device.detect_next_hop(src, vrf)
+                if nexthop == None:
+                    yield {'index': result_index, 'endmessage': 'No further route in this VRF'}
+                    return results
+                srciface = device.detect_iface(nexthop, vrf)
+                yield {'index': result_index, 'srciface': srciface}
+                
+                # Detect access-list on source interface
+                try:
+                    aclname, acl = device.detect_acl(srciface, 'in')
+                    yield {'index': result_index, 'srcaclname': aclname}
+                except Exception as e:
+                    traceback.print_exc()
+                    yield {'index': result_index, 'endmessage': f'Критическая ошибка: {e}'}
+                    return # Просто выходим из генератора, воркер Celery остается жив и готов к новым задачам
+                
+                # Check if we can pass access-list
+                if acl == 'noacl':
+                    yield {'index': result_index, 'srcresult': 'PASSED, no access-list'}
+                else:
+                    yield {'index': result_index, 'srcresult': compare(acl, src, dst, dst_port, prot)}
+                # Detect outgoing interface and next hop
+                device.is_directly_connected = False
+                dstnexthop, dstidc = device.detect_next_hop(dst, vrf)
+                if dstnexthop == None:
+                    yield {'index': result_index, 'endmessage': 'No further route in this VRF'}
+                dstiface = device.detect_iface(dstnexthop, vrf)
+                yield {'index': result_index, 'dstiface': dstiface}
+
+                # Detect access-list on destination interface
+                try:
+                    aclname, acl = device.detect_acl(dstiface, 'out')
+                    yield {'index': result_index, 'dstaclname': aclname}
+                except Exception as e:
+                    print('Wrong destination ip!')
+                    yield {'index': result_index, 'endmessage': f'Критическая ошибка: {e}'}
+                    return # Просто выходим из генератора, воркер Celery остается жив и готов к новым задачам
+
+                # Check if we can pass access-list
+                if acl == 'noacl':
+                    yield {'index': result_index, 'dstresult': 'PASSED, no access-list'}
+                else:
+                    yield {'index': result_index, 'dstresult': compare(acl, src, dst, dst_port, prot)}
+                
+                # If destination is directly connected - finish
+                if dstidc == True:
+                    yield {'index': result_index, 'endmessage': 'Target is directly connected'}
+                    result_index += 1
+                    print(results)
+                    return results
+                
+                # Detect management ip of next hop
+                try:
+                    nexthost = findmgmt(dstnexthop)
+                    yield {'index': result_index, 'nexthop': nexthost}
+                except Exception as e:
+                    yield {'index': result_index, 'endmessage': e}
+                    nexthost = dstnexthop
+                # yield {'index': result_index, 'nexthop': nexthost}
+                is_first_hop = False
                 v = Vrf(connector, p2p_iface)
-                vrf = v.detect_vrf()
-            yield {'index': result_index,'vrf': vrf}
-
-            # Detect source interface
-            nexthop, idc = device.detect_next_hop(src, vrf)
-            if nexthop == None:
-                yield {'index': result_index, 'endmessage': 'No further route in this VRF'}
-                return results
-            srciface = device.detect_iface(nexthop, vrf)
-            yield {'index': result_index, 'srciface': srciface}
-            
-            # Detect access-list on source interface
-            try:
-                aclname, acl = device.detect_acl(srciface, 'in')
-                yield {'index': result_index, 'srcaclname': aclname}
-            except Exception as e:
-                traceback.print_exc()
-                yield {'index': result_index, 'endmessage': f'Критическая ошибка: {e}'}
-                return # Просто выходим из генератора, воркер Celery остается жив и готов к новым задачам
-            
-            # Check if we can pass access-list
-            if acl == 'noacl':
-                yield {'index': result_index, 'srcresult': 'PASSED, no access-list'}
-            else:
-                yield {'index': result_index, 'srcresult': compare(acl, src, dst, dst_port, prot)}
-            # Detect outgoing interface and next hop
-            device.is_directly_connected = False
-            dstnexthop, dstidc = device.detect_next_hop(dst, vrf)
-            if dstnexthop == None:
-                yield {'index': result_index, 'endmessage': 'No further route in this VRF'}
-            dstiface = device.detect_iface(dstnexthop, vrf)
-            yield {'index': result_index, 'dstiface': dstiface}
-
-            # Detect access-list on destination interface
-            try:
-                aclname, acl = device.detect_acl(dstiface, 'out')
-                yield {'index': result_index, 'dstaclname': aclname}
-            except Exception as e:
-                print('Wrong destination ip!')
-                yield {'index': result_index, 'endmessage': f'Критическая ошибка: {e}'}
-                return # Просто выходим из генератора, воркер Celery остается жив и готов к новым задачам
-
-            # Check if we can pass access-list
-            if acl == 'noacl':
-                yield {'index': result_index, 'dstresult': 'PASSED, no access-list'}
-            else:
-                yield {'index': result_index, 'dstresult': compare(acl, src, dst, dst_port, prot)}
-            
-            # If destination is directly connected - finish
-            if dstidc == True:
-                yield {'index': result_index, 'endmessage': 'Target is directly connected'}
                 result_index += 1
-                print(results)
-                return results
+            gw = nexthost
+        except Exception as e:
+            traceback.print_exc()
+            logger.error(f"Ошибка: {e}")
             
-            # Detect management ip of next hop
-            try:
-                nexthost = findmgmt(dstnexthop)
-                yield {'index': result_index, 'nexthop': nexthost}
-            except Exception as e:
-                yield {'index': result_index, 'endmessage': e}
-                nexthost = dstnexthop
-            # yield {'index': result_index, 'nexthop': nexthost}
-            is_first_hop = False
-            v = Vrf(connector, p2p_iface)
-            result_index += 1
-        gw = nexthost
+            # Отправляем Flask финальное сообщение, чтобы снять статус "зависания"
+            yield {
+                'index': result_index, 
+                'hostname': gw, 
+                'endmessage': f"Ошибка: {e}"
+            }
+            # Прерываем выполнение генератора (задача Celery завершится успешно для Flask)
+            return results
 
 if __name__ == '__main__':
     for result in run(username, password, prot, src, dst, dst_port, gw, vrf):
