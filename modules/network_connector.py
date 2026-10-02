@@ -95,6 +95,16 @@ class NetmikoConnector:
             # Заставляем Netmiko обновить внутренние параметры класса под новый вендор
             self._connection.set_base_prompt() 
             
+            # Оптимизация таймингов под вендора:
+            if new_type == 'cisco_nxos':
+                # Замедляем только Nexus, чтобы избежать ошибок "Pattern not detected"
+                self._connection.global_delay_factor = 2
+                logger.info("Установлен global_delay_factor = 2 для сессии NX-OS")
+            else:
+                # Для IOS и Arista возвращаем стандартную скорость работы
+                self._connection.global_delay_factor = 1
+                logger.info(f"Установлен стандартный global_delay_factor = 1 для {new_type}")
+            
     def enable(self, secret: Optional[str] = None) -> str:
         """
         Переводит сессию в привилегированный режим (enable).
