@@ -34,8 +34,8 @@ def check_ip(ip, network):
     except:
         return check_mask(ip, network)
 
-def find_match(acl, x, src, dst, dst_port, prot):
-# Ищем совпадения в access-list-e, x - permit or deny
+def find_match(acl, src, dst, dst_port, prot):
+# Ищем совпадения в access-list-e
     logger.info('find_match started')
     for line in acl:
         if 'permit' in line or 'deny' in line:
@@ -43,9 +43,7 @@ def find_match(acl, x, src, dst, dst_port, prot):
         else:
             continue
         try:
-            if x not in line:
-                continue
-            elif prot not in line and ' ip ' not in line:
+            if prot not in line and ' ip ' not in line:
                 continue
             elif check_ip(src, acl_src) == False:
                 continue
@@ -54,11 +52,9 @@ def find_match(acl, x, src, dst, dst_port, prot):
             elif 'established' not in line and (l1.check_port(line, dst_port) == True or ('eq' not in line and 'range' not in line)) and 'established' not in line:
                 logger.info(f'Matched line: {line}')
                 return line 
-                break
-            elif x in line and ' ip ' in line and src in acl_src and dst in acl_dst:
+            elif ' ip ' in line and src in acl_src and dst in acl_dst:
                 logger.info(f'Matched line: {line}')
                 return line 
-                break
         except Exception:
             traceback.print_exc()
             logger.error(f'Не могу разобрать строку {line}')
@@ -68,4 +64,4 @@ def find_match(acl, x, src, dst, dst_port, prot):
         return line        
     
 if __name__ == '__main__':
-    find_match(acl, x, src, dst, dst_port, prot)
+    find_match(acl, src, dst, dst_port, prot)

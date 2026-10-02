@@ -8,14 +8,13 @@ def compare(acl, src, dst, dst_port, prot):
     logger.debug('compare started')
     global _acl
     _acl = acl
-    permit = find_match(acl, 'permit', src, dst, dst_port, prot)
-    logger.debug(f'permit line is: {permit}')
-    deny = find_match(acl, 'deny', src, dst, dst_port, prot)
-    logger.debug(f'deny line is: {deny}')
-    if int(permit.split()[0]) < int(deny.split()[0]):
-        return f'PASSED,  {permit}'
-    elif int(permit.split()[0]) > int(deny.split()[0]):
-        return f'BLOCKED,  {deny}'
+    result = find_match(acl, src, dst, dst_port, prot)
+    logger.debug(f'Matched line is: {result}')
+
+    if 'permit' in result:
+        return f'PASSED,  {result}'
+    elif 'deny' in result:
+        return f'BLOCKED,  {result}'
     else: 
         return 'BLOCKED by implicit deny'
 

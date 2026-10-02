@@ -83,6 +83,18 @@ class NetmikoConnector:
         finally:
             self._connection = None
             
+    def set_device_type(self, new_type: str) -> None:
+        """
+        Динамически меняет тип устройства для текущей активной сессии Netmiko.
+        Это перенастраивает внутренние паттерны ожидания промпта.
+        """
+        if self._connection and self._is_alive():
+            logger.info( f"Переключаем тип устройства динамически: {self.device_type} -> {new_type}")
+            self.device_type = new_type
+            self._connection.device_type = new_type
+            # Заставляем Netmiko обновить внутренние параметры класса под новый вендор
+            self._connection.set_base_prompt() 
+            
     def enable(self, secret: Optional[str] = None) -> str:
         """
         Переводит сессию в привилегированный режим (enable).

@@ -106,9 +106,10 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
             try:
                 aclname, acl = device.detect_acl(srciface, 'in')
                 yield {'index': result_index, 'srcaclname': aclname}
-            except Exception:
+            except Exception as e:
                 traceback.print_exc()
-                exit() 
+                yield {'index': result_index, 'endmessage': f'Критическая ошибка: {e}'}
+                return # Просто выходим из генератора, воркер Celery остается жив и готов к новым задачам
             
             # Check if we can pass access-list
             if acl == 'noacl':
@@ -127,9 +128,10 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
             try:
                 aclname, acl = device.detect_acl(dstiface, 'out')
                 yield {'index': result_index, 'dstaclname': aclname}
-            except Exception:
+            except Exception as e:
                 print('Wrong destination ip!')
-                exit()
+                yield {'index': result_index, 'endmessage': f'Критическая ошибка: {e}'}
+                return # Просто выходим из генератора, воркер Celery остается жив и готов к новым задачам
 
             # Check if we can pass access-list
             if acl == 'noacl':
@@ -150,12 +152,12 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
                 yield {'index': result_index, 'nexthop': nexthost}
             except Exception as e:
                 yield {'index': result_index, 'endmessage': e}
+                nexthost = dstnexthop
             # yield {'index': result_index, 'nexthop': nexthost}
             is_first_hop = False
             v = Vrf(connector, p2p_iface)
             result_index += 1
         gw = nexthost
-        # exit()
 
 if __name__ == '__main__':
     for result in run(username, password, prot, src, dst, dst_port, gw, vrf):
