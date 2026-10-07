@@ -58,14 +58,15 @@ gw = '127.0.0.1'
 def run(username, password, prot, src, dst, dst_port, gw, vrf):
     results = []
     result_index = 0
+    is_first_hop = True
+    current_host = gw
     dstnexthop = '' # Temporary!!!
     while True:
         print('running...')
-        is_first_hop = False
         p2p_iface = ''
         try:
             with NetmikoConnector(
-                host=gw,
+                host=current_host,
                 username=username,
                 password=password,
                 secret=enable,
@@ -157,7 +158,7 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
                 is_first_hop = False
                 v = Vrf(connector, p2p_iface)
                 result_index += 1
-            gw = nexthost
+            current_host = nexthost
         except Exception as e:
             traceback.print_exc()
             logger.error(f"Ошибка: {e}")
