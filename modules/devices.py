@@ -5,13 +5,28 @@ from modules.normalise import normalise
 
 logger = logging.getLogger(__name__)
 
+import re
+import logging
+
+# Компилируем тяжелые паттерны ОДИН раз при запуске скрипта
+IP_ROUTE_ADDR_PATTERN = re.compile(
+    r'((?:\* |\*via )\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|not in table|directly connected|Null)'
+)
+PURE_IP_PATTERN = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
+
+# Обратите внимание: убираем динамический f-строковый паттерн из метода detect_acl 
+# и делаем его универсальным, захватывая 'in' или 'out' в группу
+ACL_GROUP_PATTERN = re.compile(r'ip access-group\s+(\S+)\s+(in|out)', re.IGNORECASE)
+
+
+
 class Device():
     def __init__(self, connector: NetmikoConnector, *args) -> None:
         self.connector = connector
         self.is_directly_connected = False
 
     def get_addr_raw(self, output):
-        self.addr_raw = (re.findall('((?:\* |\*via )\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|not in table|directly connected|Null)', output))
+        self.addr_raw = IP_ROUTE_ADDR_PATTERN.findall(output)
         return self.addr_raw
 
     def get_nexthop(self, addr_raw):
@@ -35,7 +50,7 @@ class Device():
                 nexthop = None
                 return nexthop, self.is_directly_connected
             if 'directly connected' in i or 'attached' in i:
-                addr_raw = (re.findall('(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', output))
+                addr_raw = (re.findall(PURE_IP_PATTERN, output))
                 nexthop = addr_raw[0]
                 self.is_directly_connected = True
                 return nexthop, self.is_directly_connected
@@ -99,7 +114,7 @@ class Device():
         return iface
     
     def detect_p2p_iface(self, ip):
-        output = self.connector.send_command(f'show ip interface brief | inc {ip}').split(' ')
+        output = self.connector.send_command(f'show ip interface brief | inc {ip}').split()
         p2p_iface = output[0]
         return p2p_iface
 
@@ -110,12 +125,19 @@ class Device():
     def detect_acl(self, iface, x):
         #x - in or out
         output = self.connector.send_command(f'show run int {iface}')
-        rawacl = re.findall(f'(ip access-group) (\S+|\s+) {x}', output)
-        if rawacl:
-            aclname = rawacl[0][-1]
+        # rawacl = re.findall(f'(ip access-group) (\S+|\s+) {x}', output)
+        matches = ACL_GROUP_PATTERN.findall(output) # вернет список кортежей [('ACL_NAME', 'in')]
+        
+        aclname = 'noacl'
+        for name, direction in matches:
+            if direction.lower() == x.lower():
+                aclname = name
+                break
+        # if rawacl:
+        #     aclname = rawacl[0][-1]
+        if aclname != 'noacl':
             acl = self.acl_command(aclname)
-            if 'Extended IP access list' in acl[0]:
-                acl.pop(0)
+            
             acl = normalise(acl, self.connector)
             return aclname, acl
         else:
