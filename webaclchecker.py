@@ -37,11 +37,7 @@ net = ipaddress.ip_network
 
 
 def find_host_name(connector):
-    is_enabled = True
-    # command = connector.find_prompt()
-    # if '>' in command:
-    #     is_enabled = False
-    # hostname = str(connector.find_prompt())[:-1]
+    is_enabled = connector.check_enable_mode()
     hostname = connector.base_prompt()
     return is_enabled, hostname
 

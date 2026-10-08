@@ -94,7 +94,12 @@ class NetmikoConnector:
             self._connection.device_type = new_type
             # Заставляем Netmiko обновить внутренние параметры класса под новый вендор
             self._connection.set_base_prompt() 
-
+            
+    def check_enable_mode(self) -> bool:
+        """Проверяет режим enable с минимальным сетевым запросом."""
+        if not self._connection or not self._is_alive():
+            return False
+        return self._connection.check_enable_mode()
             
     def enable(self, secret: Optional[str] = None) -> str:
         """
