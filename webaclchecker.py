@@ -38,10 +38,11 @@ net = ipaddress.ip_network
 
 def find_host_name(connector):
     is_enabled = True
-    command = connector.find_prompt()
-    if '>' in command:
-        is_enabled = False
-    hostname = str(connector.find_prompt())[:-1]
+    # command = connector.find_prompt()
+    # if '>' in command:
+    #     is_enabled = False
+    # hostname = str(connector.find_prompt())[:-1]
+    hostname = connector.base_prompt()
     return is_enabled, hostname
 
 enable = '123' # Temporary!!!
@@ -166,7 +167,7 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
             # Отправляем Flask финальное сообщение, чтобы снять статус "зависания"
             yield {
                 'index': result_index, 
-                'hostname': gw, 
+                'hostname': current_host, 
                 'endmessage': f"Ошибка: {e}"
             }
             # Прерываем выполнение генератора (задача Celery завершится успешно для Flask)

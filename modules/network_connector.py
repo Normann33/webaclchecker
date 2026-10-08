@@ -143,6 +143,11 @@ class NetmikoConnector:
         if not self._connection or not self._is_alive():
             raise RuntimeError(f"No active connection to {self.host}")
         return self._connection.find_prompt()
+    
+    def base_prompt(self) -> str:
+        if not self._connection or not self._is_alive():
+            raise RuntimeError(f"No active connection to {self.host}")
+        return self._connection.base_prompt
 
     def _is_alive(self) -> bool:
         """Безопасная проверка статуса соединения."""
