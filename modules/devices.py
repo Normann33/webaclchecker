@@ -51,7 +51,8 @@ class Device():
                 return nexthop, self.is_directly_connected
             if 'directly connected' in i or 'attached' in i:
                 addr_raw = (re.findall(PURE_IP_PATTERN, output))
-                nexthop = addr_raw[0]
+                # nexthop = addr_raw[0]
+                nexthop = ip
                 self.is_directly_connected = True
                 return nexthop, self.is_directly_connected
             elif 'not in table' in i and vrf == 'default':
