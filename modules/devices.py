@@ -121,10 +121,16 @@ class Device():
             iface = raw_iface[0].strip(',')
         return iface
     
-    def detect_p2p_iface(self, ip):
-        output = self.connector.send_command(f'show ip interface brief | inc {ip}').split()
-        p2p_iface = output[0]
-        return p2p_iface
+    def detect_p2p_iface(self, target_ip):
+        if not self.config_context:
+            self.load_context()
+        for iface_name, iface_data in self.config_context["interfaces"].items():
+            # Проверяем, совпадает ли IP-адрес
+            if iface_data.get("ip") == target_ip:
+                return iface_name
+        # output = self.connector.send_command(f'show ip interface brief | inc {ip}').split()
+        # p2p_iface = output[0]
+        # return p2p_iface
 
     def acl_command(self, aclname):
         acl = self.connector.send_command(f'show access-l {aclname}').strip().split('\n')

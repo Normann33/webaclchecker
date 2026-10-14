@@ -79,7 +79,7 @@ def parse_running_config(config_text):
                 current_name = line_strip.split()[-1]
                 current_context = 'iface'
                 if current_name not in parsed["interfaces"]:
-                    parsed["interfaces"][current_name] = {"in": "noacl", "out": "noacl"}
+                    parsed["interfaces"][current_name] = {"in": "noacl", "out": "noacl", 'ip': None}
                 continue
 
         else:
@@ -131,5 +131,19 @@ def parse_running_config(config_text):
                             if part.lower() not in ['ip', 'ipv6', 'access-group', 'access-list', 'in', 'out', 'input', 'output', 'ingress', 'egress']:
                                 parsed["interfaces"][current_name][direction] = part
                                 break
+                if line_strip.lower().startswith('ip address '):
+                    # Разделяем строку по пробелам на элементы
+                    parts = line_strip.split()
+                    
+                    # Проверяем, что в строке достаточно элементов (минимум: ip address IP)
+                    if len(parts) >= 3:
+                        potential_ip = parts[2]
+                        
+                        # Убираем CIDR-маску, если IP указан в формате X.X.X.X/YY
+                        if '/' in potential_ip:
+                            potential_ip = potential_ip.split('/')[0]
+                            
+                        # Записываем найденный IP в наш интерфейс
+                        parsed["interfaces"][current_name]["ip"] = potential_ip
 
     return parsed

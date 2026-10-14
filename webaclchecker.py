@@ -82,11 +82,13 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
                 yield {'index': result_index,'hostname': hostname}
                 print(hostname)
                 hostname_find_end = time.perf_counter()
-                print(f"⏱ find_host_name Выполнено за {hostname_find_end - hostname_find_start:.3f} сек")
+                print(f'⏱ find_host_name Выполнено за {hostname_find_end - hostname_find_start:.3f} сек')
                 
                 device.load_context()
                 context = device.config_context or {}
-                groups = context.get("object_groups", {})
+                # interfaces = context.get('interfaces')
+                # print(interfaces)
+                groups = context.get('object_groups', {})
                 
                 # is_first_hop = False
                 if is_first_hop == False:
