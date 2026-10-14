@@ -1,7 +1,7 @@
 import re
 import logging
 from modules.network_connector import NetmikoConnector
-from modules.normalise import normalise
+from modules.normalise import parse_running_config
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,13 @@ class Device():
     def __init__(self, connector: NetmikoConnector, *args) -> None:
         self.connector = connector
         self.is_directly_connected = False
+        self.config_context = None # Сюда положим результат parse_running_config
+    
+    def load_context(self):
+        """Скачивает конфигурацию ОДИН раз за сессию."""
+        logger.info("Скачивание running-config...")
+        raw_config = self.connector.send_command('show running-config')
+        self.config_context = parse_running_config(raw_config)
 
     def get_addr_raw(self, output):
         self.addr_raw = IP_ROUTE_ADDR_PATTERN.findall(output)
@@ -123,27 +130,38 @@ class Device():
         acl = self.connector.send_command(f'show access-l {aclname}').strip().split('\n')
         return acl
 
-    def detect_acl(self, iface, x):
-        #x - in or out
-        output = self.connector.send_command(f'show run int {iface}')
-        # rawacl = re.findall(f'(ip access-group) (\S+|\s+) {x}', output)
-        matches = ACL_GROUP_PATTERN.findall(output) # вернет список кортежей [('ACL_NAME', 'in')]
+    # def detect_acl(self, iface, x):
+    #     #x - in or out
+    #     output = self.connector.send_command(f'show run int {iface}')
+    #     # rawacl = re.findall(f'(ip access-group) (\S+|\s+) {x}', output)
+    #     matches = ACL_GROUP_PATTERN.findall(output) # вернет список кортежей [('ACL_NAME', 'in')]
         
-        aclname = 'noacl'
-        for name, direction in matches:
-            if direction.lower() == x.lower():
-                aclname = name
-                break
-        # if rawacl:
-        #     aclname = rawacl[0][-1]
-        if aclname != 'noacl':
-            acl = self.acl_command(aclname)
+    #     aclname = 'noacl'
+    #     for name, direction in matches:
+    #         if direction.lower() == x.lower():
+    #             aclname = name
+    #             break
+    #     # if rawacl:
+    #     #     aclname = rawacl[0][-1]
+    #     if aclname != 'noacl':
+    #         acl = self.acl_command(aclname)
             
-            acl = normalise(acl, self.connector)
-            return aclname, acl
-        else:
-            acl = aclname = 'noacl'
-        return aclname, acl
+    #         acl = normalise(acl, self.connector)
+    #         return aclname, acl
+    #     else:
+    #         acl = aclname = 'noacl'
+    #     return aclname, acl
+    
+    def detect_acl(self, iface, direction):
+        """Полностью офлайновый метод получения имени и строк ACL."""
+        if not self.config_context:
+            self.load_context()
+            
+        iface_data = self.config_context["interfaces"].get(iface, {"in": "noacl", "out": "noacl"})
+        acl_name = iface_data.get(direction.lower(), "noacl")
+        
+        acl_lines = self.config_context["acls"].get(acl_name, [])
+        return acl_name, acl_lines
     
     def __str__(self):
         return 'IOS device'

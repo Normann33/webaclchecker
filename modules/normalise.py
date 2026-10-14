@@ -1,51 +1,135 @@
 import re
-from modules.hostreplace import host_replace
-from modules.objgroupreplace import obj_group_replace
-from modules.utils.objgroup_parser import objgroup_parse
 
-OBJ_GROUP_PATTERN = re.compile(r'(?:object-group|addrgroup)\s+(\S+)', re.IGNORECASE)
-
-def normalise(acl, ssh_connect):
-    '''Приведение ip адресов в строках к единому виду'''
-    acl_clean = []
+def parse_running_config(config_text):
+    """
+    Универсальный парсер конфигураций Cisco (IOS, XE, XR, NX-OS, ASA) и Arista EOS.
+    Основан на анализе контекста отступов (Иерархический парсинг).
+    """
+    parsed = {
+        "acls": {},
+        "object_groups": {},
+        "interfaces": {}
+    }
     
-    # Кэш для object-groups в рамках ОДНОГО вызова функции normalise.
-    # Предотвращает повторные SSH-запросы для одинаковых групп.
-    fetched_groups = {}
+    if not config_text:
+        return parsed
 
-    for line in acl:
-        if any(k in line for k in ('remark', 'Extended IP access', 'Access', 'elements')):
+    # Регулярные выражения для определения типов глобальных секций (без отступов)
+    # Ищет любое упоминание access-list/access-group/filter в начале строки
+    ANY_ACL_START = re.compile(r'^(?:ip|ipv6)?\s*access-list\s+(?:extended|standard|matrix)?\s*(\S+)', re.IGNORECASE)
+    # Теперь регулярка ловит и 'object-group network NAME', и 'addrgroup NAME'
+    ANY_OG_START = re.compile(r'^(?:object-group|addrgroup)\s+(?:network|address|service)?\s*(\S+)', re.IGNORECASE)
+
+    ANY_IFACE_START = re.compile(r'^interface\s+(\S+)', re.IGNORECASE)
+
+    # Вспомогательные регулярки для внутренностей object-group
+    HOST_PATTERN = re.compile(r'host\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', re.IGNORECASE)
+    SUBNET_PATTERN = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', re.IGNORECASE)
+
+    current_context = None  # Может быть: 'acl', 'og', 'iface'
+    current_name = None     # Имя текущей секции
+
+    for line in config_text.splitlines():
+        line_strip = line.strip()
+        
+        # Пропускаем пустые строки, комментарии и баннеры
+        if not line_strip or line_strip.startswith('!') or line_strip.startswith('#'):
             continue
-        if 'access-list' in line:
-            line = ' '.join(line.split()[3::])
-        if 'host' in line:
-            line = host_replace(line)
-        line = line.replace('host', '255.255.255.255').replace('any4', '0.0.0.0 0.0.0.0').replace('any', '0.0.0.0 0.0.0.0')
-        if 'object-group' in line or 'addrgroup' in line:
-            # obj_group_finder = re.finditer(r'object-group (\S+)|addrgroup (\S+)', line)
-            obj_group_names = OBJ_GROUP_PATTERN.findall(line)
-            # for i in obj_group_finder:
-            #     obj_group_names.append(i.group(1))
-            obj_groups = {}
-            for i in obj_group_names:
-                objgroup_items_raw = ssh_connect.send_command(f'show object-group {i}')
-                if 'invalid' in objgroup_items_raw.lower():
-                    objgroup_items_raw = ssh_connect.send_command(f'show object-group name {i}')
-                objgroup_items = objgroup_parse(objgroup_items_raw)
-                obj_groups[i] = objgroup_items
-            temp_acl = []
-            if len(obj_group_names) == 1:
-                for item in objgroup_items:
-                    acl_clean.append(obj_group_replace(line, obj_group_names[0], ''.join(f"{item['ipaddr']} {item['netmask']}")).replace('object-group', ''))
-            else:
-                for item in objgroup_items:
-                    temp_acl.append(obj_group_replace(line, obj_group_names[0], ''.join(f"{item['ipaddr']} {item['netmask']}")).replace('object-group', ''))
-                for i in temp_acl:
-                    for item in objgroup_items:
-                        acl_clean.append(obj_group_replace(i, obj_group_names[1], ''.join(f"{item['ipaddr']} {item['netmask']}")).replace('object-group', ''))
-        else:
-            acl_clean.append(line.strip('\n'))
-    return acl_clean
 
-if __name__ == '__main__':
-    normalise(acl)
+        # Проверяем, имеет ли строка отступ (признак подсекции)
+        has_indent = line.startswith(' ') or line.startswith('\t')
+
+        if not has_indent:
+            # === МЫ НА ГЛОБАЛЬНОМ УРОВНЕ (НЕТ ОТСТУПА) ===
+            current_context = None
+            current_name = None
+
+            # 1. Проверяем старые плоские нумерованные списки (Cisco IOS: access-list 101 permit...)
+            if line_strip.startswith('access-list '):
+                parts = line_strip.split()
+                if len(parts) > 2:
+                    acl_name = parts[1]
+                    if acl_name not in parsed["acls"]:
+                        parsed["acls"][acl_name] = []
+                    parsed["acls"][acl_name].append(line_strip)
+                continue
+
+            # 2. Проверяем начало блочного именованного ACL (Cisco/Arista)
+            match_acl = ANY_ACL_START.match(line_strip)
+            if match_acl:
+                current_name = match_acl.group(1)
+                current_context = 'acl'
+                if current_name not in parsed["acls"]:
+                    parsed["acls"][current_name] = []
+                continue
+
+            # 3. Проверяем начало Object-Group (Cisco/Arista)
+            match_og = ANY_OG_START.match(line_strip)
+            if match_og:
+                current_name = match_og.group(1)
+                current_context = 'og'
+                if current_name not in parsed["object_groups"]:
+                    parsed["object_groups"][current_name] = []
+                continue
+
+            # 4. Проверяем начало интерфейса
+            match_iface = ANY_IFACE_START.match(line_strip)
+            if match_iface:
+                # Извлекаем полное имя интерфейса, например Ethernet1/1 или GigabitEthernet0/0/1
+                current_name = line_strip.split()[-1]
+                current_context = 'iface'
+                if current_name not in parsed["interfaces"]:
+                    parsed["interfaces"][current_name] = {"in": "noacl", "out": "noacl"}
+                continue
+
+        else:
+            # === МЫ ВНУТРИ БЛОКА (ЕСТЬ ОТСТУП) ===
+            if not current_context or not current_name:
+                continue
+
+            # А. Контекст сбора строк ACL
+            if current_context == 'acl':
+                # Для воронки важно, чтобы строка содержала permit/deny.
+                # Если в NX-OS/Arista строки нумеруются (10 permit tcp...), сохраняем как есть
+                parsed["acls"][current_name].append(line_strip)
+
+            # Б. Контекст сбора элементов Object-Group
+            elif current_context == 'og':
+                # Извлекаем IP-адреса универсально, независимо от префиксов (network-object/host/subnet)
+                m_host = HOST_PATTERN.search(line_strip)
+                if m_host:
+                    parsed["object_groups"][current_name].append(
+                        {"ipaddr": m_host.group(1), "netmask": "255.255.255.255"}
+                    )
+                    continue
+                    
+                m_sub = SUBNET_PATTERN.search(line_strip)
+                if m_sub:
+                    # Будь то "network-object 10.1.1.0 255.255.255.0" или просто "10.1.1.0 255.255.255.0"
+                    parsed["object_groups"][current_name].append(
+                        {"ipaddr": m_sub.group(1), "netmask": m_sub.group(2)}
+                    )
+
+            # В. Контекст сбора параметров интерфейса (Поиск привязки ACL)
+            elif current_context == 'iface':
+                # Ищем команды: ip access-group NAME in, ip access-group NAME out, ip access-group NAME input (Arista)
+                # или ip access-list input/output (Arista EOS)
+                if 'access-group' in line_strip or 'access-list' in line_strip:
+                    parts = line_strip.split()
+                    
+                    # Определяем направление (обычно последнее или предпоследнее слово: in/out/input/output)
+                    direction = None
+                    if any(x in parts for x in ['in', 'input', 'ingress']):
+                        direction = 'in'
+                    elif any(x in parts for x in ['out', 'output', 'egress']):
+                        direction = 'out'
+                        
+                    if direction:
+                        # Имя ACL — это то слово, которое идет перед направлением или после команды
+                        # Универсальный хак: исключаем служебные слова, берем то, что похоже на имя
+                        for part in parts:
+                            if part.lower() not in ['ip', 'ipv6', 'access-group', 'access-list', 'in', 'out', 'input', 'output', 'ingress', 'egress']:
+                                parsed["interfaces"][current_name][direction] = part
+                                break
+
+    return parsed

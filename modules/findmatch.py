@@ -1,4 +1,5 @@
 import logging
+import re
 from modules.linesplit import LineSplit
 import ipaddress
 import traceback
@@ -9,6 +10,97 @@ addr = ipaddress.ip_address
 net = ipaddress.ip_network
 
 l1 = LineSplit()
+
+ACL_STRUCTURE_PATTERN = re.compile(
+    r'(?P<action>permit|deny)\s+'
+    r'(?P<proto>\S+)\s+'
+    r'(?P<src>object-group\s+\S+|host\s+\S+|any\d*|\S+\s+\S+|\S+)(?:\s+(?:eq|range|gt|lt|neq)\s+\S+)?\s+'
+    r'(?P<dst>object-group\s+\S+|host\s+\S+|any\d*|\S+\s+\S+|\S+)'
+)
+
+def prepare_address_string(addr_block, group_cache):
+    """Превращает блок адреса в список готовых подсетей/IP (с раскрытием ОГ из кэша)."""
+    addr_block = addr_block.strip()
+    
+    if addr_block in ('any', 'any4'):
+        return ['0.0.0.0 0.0.0.0']
+    if addr_block.startswith('host '):
+        clean_ip = addr_block.replace('host', '', 1).strip()
+        return [f"{clean_ip} 255.255.255.255"]
+    if 'object-group' in addr_block or 'addrgroup' in addr_block:
+        g_name = addr_block.split()[-1]
+        group_items = group_cache.get(g_name, [])
+        return [f"{item['ipaddr']} {item['netmask']}" for item in group_items]
+        
+    return [addr_block]
+
+def find_match_pipeline(acl_lines, src, dst, dst_port, prot, group_cache):
+    """
+    Та самая воронка (Pipeline), отсекающая лишнее.
+    """
+    logger.info('Воронка find_match_pipeline запущена')
+    
+    for line in acl_lines:
+        line_clean = line.strip()
+        # if not line_clean or any(k in line_clean for k in ('remark', 'elements', 'Access')):
+        #     continue
+
+        # --- Этап 1: Фильтр экшена ---
+        if 'permit' not in line_clean and 'deny' not in line_clean:
+            continue
+        if 'established' in line_clean:
+            continue
+        
+        # --- Этап 2: Быстрый разбор структуры ---
+        match = ACL_STRUCTURE_PATTERN.search(line_clean)
+        if not match:
+            continue
+        data = match.groupdict()
+
+        # --- Этап 3: Фильтр протокола ---
+        if data['proto'] != 'ip' and data['proto'] != prot:
+            continue
+
+        # --- Этап 4: Фильтр портов назначения (РАННИЙ) ---
+        # Избавляет от проверок IP, если порт заведомо не подошел
+        if data['proto'] != 'ip':
+            if any(op in line_clean for op in ['eq', 'range', 'gt', 'lt']):
+                if not l1.check_port(line_clean, dst_port):
+                    continue
+
+        # --- Этап 5: Раскрытие адресов и валидация IP через LineSplit ---
+        src_options = prepare_address_string(data['src'], group_cache)
+        dst_options = prepare_address_string(data['dst'], group_cache)
+        
+        match_found = False
+        for src_opt in src_options:
+            for dst_opt in dst_options:
+                # Генерируем "чистую" строку без host/any/object-group для l1.acl_addr
+                test_line = f"{data['action']} {data['proto']} {src_opt} {dst_opt}"
+                try:
+                    # Ваша стандартная логика проверки вхождения IP в подсеть
+                    acl_src, acl_dst = l1.acl_addr(test_line)
+                    if (addr(src) in acl_src) and (addr(dst) in acl_dst):
+                        match_found = True
+                        break
+                except Exception as e:
+                    print(e)
+                    raise
+                    continue
+            if match_found:
+                break
+
+        # --- Этап 6: Остановка на первом совпадении (First Match) ---
+        if match_found:
+            if data['action'] == 'permit':
+                return line_clean
+            else:
+                # Попали под явный deny — пакет заблокирован, поиск прекращаем
+                logger.info(f"Пакет заблокирован правилом: {line_clean}")
+                return '99999 deny ip any any'
+
+    # Конец аксесс-листа — неявный deny
+    return '99999 deny ip any any'
 
 def check_mask(ip_str, network_line):
         # Преобразуем строки в объекты IP
@@ -78,7 +170,7 @@ def find_match(acl, src, dst, dst_port, prot):
             continue
         try:
             if match_line(line, src, dst, dst_port, prot):
-                if 'permit' in line:
+                if 'permit' in line or 'deny' in line:
                     return line
         except Exception:
             traceback.print_exc()

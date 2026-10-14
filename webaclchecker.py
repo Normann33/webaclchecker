@@ -16,7 +16,7 @@ from modules.network_connector import NetmikoConnector
 from modules.utils.version import Version
 from modules.utils.vrf import Vrf
 from modules.devices import *
-from modules.normalise import normalise
+# from modules.normalise import normalise
 from modules.compare import compare
 from modules.asa import Asa
 from dotenv import load_dotenv
@@ -84,6 +84,10 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
                 hostname_find_end = time.perf_counter()
                 print(f"⏱ find_host_name Выполнено за {hostname_find_end - hostname_find_start:.3f} сек")
                 
+                device.load_context()
+                context = device.config_context or {}
+                groups = context.get("object_groups", {})
+                
                 # is_first_hop = False
                 if is_first_hop == False:
                     p2p_iface = device.detect_p2p_iface(dstnexthop)
@@ -110,10 +114,10 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
                     return # Просто выходим из генератора, воркер Celery остается жив и готов к новым задачам
                 
                 # Check if we can pass access-list
-                if acl == 'noacl':
+                if aclname == 'noacl':
                     yield {'index': result_index, 'srcresult': 'PASSED, no access-list'}
                 else:
-                    yield {'index': result_index, 'srcresult': compare(acl, src, dst, dst_port, prot)}
+                    yield {'index': result_index, 'srcresult': compare(acl, src, dst, dst_port, prot, group_cache=groups)}
                 # Detect outgoing interface and next hop
                 device.is_directly_connected = False
                 dstnexthop, dstidc = device.detect_next_hop(dst, vrf)
@@ -132,10 +136,10 @@ def run(username, password, prot, src, dst, dst_port, gw, vrf):
                     return # Просто выходим из генератора, воркер Celery остается жив и готов к новым задачам
 
                 # Check if we can pass access-list
-                if acl == 'noacl':
+                if aclname == 'noacl':
                     yield {'index': result_index, 'dstresult': 'PASSED, no access-list'}
                 else:
-                    yield {'index': result_index, 'dstresult': compare(acl, src, dst, dst_port, prot)}
+                    yield {'index': result_index, 'dstresult': compare(acl, src, dst, dst_port, prot, group_cache=groups)}
                 
                 # If destination is directly connected - finish
                 if dstidc == True:
