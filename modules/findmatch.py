@@ -124,11 +124,39 @@ def find_match_pipeline(acl_lines, src, dst, dst_port, prot, group_cache):
 
         # --- Этап 4: Фильтр портов назначения (РАННИЙ) ---
         # Избавляет от проверок IP, если порт заведомо не подошел
-        if data['proto'] != 'ip':
-            if any(op in line_clean for op in ['eq', 'range', 'gt', 'lt']):
-                if not l1.check_port(line_clean, dst_port):
+        if is_service_group:
+            # Вытаскиваем имя группы сервисов (последнее слово в блоке proto)
+            s_group_name = data['proto'].split()[-1]
+            service_items = group_cache.get(s_group_name, [])
+            
+            service_match = False
+            for item in service_items:
+                # Ожидается структура item из кэша: 
+                # {'protocol': 'tcp', 'port_op': 'eq', 'port_val': '80'}
+                
+                # Если протокол внутри группы явно не совпадает с искомым (и это не 'ip')
+                if item.get('protocol') != 'ip' and item.get('protocol') != prot:
                     continue
-
+                
+                # Генерируем виртуальную строку, которую старый l1.check_port сможет корректно распарсить
+                # Ему важно увидеть оператор и порт в хвосте строки
+                fake_port_line = f"permit {item.get('protocol')} any any {item.get('port_op')} {item.get('port_val')}"
+                
+                if l1.check_port(fake_port_line, dst_port):
+                    service_match = True
+                    break
+            
+            # Если ни один порт/протокол внутри группы не подошел — сбрасываем строку
+            if not service_match:
+                continue
+                
+        else:
+            # Ваша оригинальная рабочая логика для обычных строк (без изменений)
+            if data['proto'] != 'ip':
+                if any(op in line_clean for op in ['eq', 'range', 'gt', 'lt']):
+                    if not l1.check_port(line_clean, dst_port):
+                        continue
+        
         # --- Этап 5: Раскрытие адресов и валидация IP через LineSplit ---
         src_options = prepare_address_string(data['src'], group_cache)
         dst_options = prepare_address_string(data['dst'], group_cache)
@@ -154,7 +182,7 @@ def find_match_pipeline(acl_lines, src, dst, dst_port, prot, group_cache):
 
         # --- Этап 6: Остановка на первом совпадении (First Match) ---
         if match_found:
-            if data['action'] == 'permit':
+            if data['action'] == 'permit' or data['action'] == 'deny':
                 return line_clean
             else:
                 # Попали под явный deny — пакет заблокирован, поиск прекращаем

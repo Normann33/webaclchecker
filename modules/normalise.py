@@ -19,6 +19,11 @@ def parse_running_config(config_text):
     ANY_ACL_START = re.compile(r'^(?:ip|ipv6)?\s*access-list\s+(?:extended|standard|matrix)?\s*(\S+)', re.IGNORECASE)
     # Теперь регулярка ловит и 'object-group network NAME', и 'addrgroup NAME'
     ANY_OG_START = re.compile(r'^(?:object-group|addrgroup)\s+(?:network|address|service)?\s*(\S+)', re.IGNORECASE)
+    
+    SERVICE_PORT_PATTERN = re.compile(
+    r'(?:port-object|protocol-object)?\s*(?P<proto>tcp|udp|ip)?\s*(?P<op>eq|range|gt|lt|neq)\s+(?P<val>.+)', 
+    re.IGNORECASE
+    )
 
     ANY_IFACE_START = re.compile(r'^interface\s+(\S+)', re.IGNORECASE)
 
@@ -96,6 +101,19 @@ def parse_running_config(config_text):
             # Б. Контекст сбора элементов Object-Group
             elif current_context == 'og':
                 # Извлекаем IP-адреса универсально, независимо от префиксов (network-object/host/subnet)
+                m_service = SERVICE_PORT_PATTERN.search(line_strip)
+                if m_service:
+                    s_data = m_service.groupdict()
+                    # Если протокол опущен (бывает на ASA внутри object-group service tcp), 
+                    # то по умолчанию берем 'ip' или можно будет наследовать его позже
+                    proto = s_data['proto'].lower() if s_data['proto'] else 'ip'
+                    
+                    parsed["object_groups"][current_name].append({
+                        "protocol": proto,
+                        "port_op": s_data['op'].lower(),
+                        "port_val": s_data['val'].strip()
+                    })
+                    continue
                 m_host = HOST_PATTERN.search(line_strip)
                 if m_host:
                     parsed["object_groups"][current_name].append(
