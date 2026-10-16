@@ -32,7 +32,7 @@ class Device():
         try:
             raw_config = self.connector.send_command('show running-config')
         except:
-            raw_config = self.connector.send_command('show running-config', max_loops=1000, read_timeout=120)
+            raw_config = self.connector.send_command('show running-config', max_loops=2000, read_timeout=250)
         self.config_context = parse_running_config(raw_config)
 
     def get_addr_raw(self, output):
