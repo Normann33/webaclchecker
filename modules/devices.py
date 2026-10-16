@@ -29,7 +29,10 @@ class Device():
     def load_context(self):
         """Скачивает конфигурацию ОДИН раз за сессию."""
         logger.info("Скачивание running-config...")
-        raw_config = self.connector.send_command('show running-config')
+        try:
+            raw_config = self.connector.send_command('show running-config')
+        except:
+            raw_config = self.connector.send_command('show running-config', delay_factor=2)
         self.config_context = parse_running_config(raw_config)
 
     def get_addr_raw(self, output):
