@@ -55,6 +55,7 @@ class NetmikoConnector:
             "port": self.port,
             "secret": self.secret,
             "timeout": self.timeout,
+            "fast_cli": False,
             **self.netmiko_kwargs
         }
 
