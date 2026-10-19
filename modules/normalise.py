@@ -21,7 +21,8 @@ def parse_running_config(config_text):
     ANY_OG_START = re.compile(r'^(?:object-group|addrgroup)\s+(?:network|address|service)?\s*(\S+)', re.IGNORECASE)
     
     SERVICE_PORT_PATTERN = re.compile(
-    r'(?:port-object|protocol-object)?\s*(?P<proto>tcp|udp|ip)?\s*(?P<op>eq|range|gt|lt|neq)\s+(?P<val>.+)', 
+    r'^(?:port-object|protocol-object)?\s*(?P<proto>tcp|udp|ip)?\s*'
+    r'(?P<op>eq|range|gt|lt|neq)\s+(?P<val>[\w\s-]+?)\s*$',
     re.IGNORECASE
     )
 
@@ -52,7 +53,7 @@ def parse_running_config(config_text):
             # 1. Проверяем старые плоские нумерованные списки (Cisco IOS: access-list 101 permit...)
             if line_strip.startswith('access-list '):
                 parts = line_strip.split()
-                if len(parts) > 2:
+                if len(parts) > 2 and parts[1].isdigit():
                     acl_name = parts[1]
                     if acl_name not in parsed["acls"]:
                         parsed["acls"][acl_name] = []

@@ -20,6 +20,6 @@ def compare(acl, src, dst, dst_port, prot, group_cache):
     else:
         return 'BLOCKED by implicit deny'
 
-if __name__ == "__main__":
-    # Для тестов (параметр group_cache по умолчанию пустой)
-    compare(acl, src, dst, dst_port, prot, group_cache={})
+# if __name__ == "__main__":
+#     # Для тестов (параметр group_cache по умолчанию пустой)
+#     compare(acl, src, dst, dst_port, prot, group_cache={})
