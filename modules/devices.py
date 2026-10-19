@@ -5,8 +5,6 @@ from modules.normalise import parse_running_config
 
 logger = logging.getLogger(__name__)
 
-import re
-import logging
 
 # Компилируем тяжелые паттерны ОДИН раз при запуске скрипта
 IP_ROUTE_ADDR_PATTERN = re.compile(
@@ -27,6 +25,8 @@ class Device():
         self.config_context = None # Сюда положим результат parse_running_config
     
     def load_context(self):
+        if self.config_context is not None:
+            return
         """Скачивает конфигурацию ОДИН раз за сессию."""
         logger.info("Скачивание running-config...")
         try:
@@ -36,8 +36,7 @@ class Device():
         self.config_context = parse_running_config(raw_config)
 
     def get_addr_raw(self, output):
-        self.addr_raw = IP_ROUTE_ADDR_PATTERN.findall(output)
-        return self.addr_raw
+        return IP_ROUTE_ADDR_PATTERN.findall(output)
 
     def get_nexthop(self, addr_raw):
         nexthop = addr_raw[0].split()[1]
@@ -76,7 +75,7 @@ class Device():
             return nexthop, self.is_directly_connected
         else:
             nexthop = self.get_nexthop(addr_raw)
-            print (addr_raw, nexthop)
+            # print (addr_raw, nexthop)
         return nexthop, self.is_directly_connected
 
     # def raw_iface(self, output):
@@ -115,9 +114,9 @@ class Device():
             output = self.connector.send_command(f'show ip route {nexthop}')
         else:
             output = self.connector.send_command(f'show ip route  vrf {vrf} {nexthop}')
-        print(output)
+        # print(output)
         raw_iface = self.raw_iface(output)
-        print('raw_iface = ', raw_iface)
+        # print('raw_iface = ', raw_iface)
         if type(raw_iface[0]) is tuple:
             iface = raw_iface[0][1].strip(',')
         else:
@@ -223,7 +222,7 @@ class Nexus (Device):
         iface = raw_iface[0][-1].strip(',')
         return iface
     
-    def detect_p2p_iface(self, ip):
-        output = self.connector.send_command(f'show ip interface brief vrf all | inc {ip}').split(' ')
-        p2p_iface = output[0]
-        return p2p_iface
+    # def detect_p2p_iface(self, ip):
+    #     output = self.connector.send_command(f'show ip interface brief vrf all | inc {ip}').split(' ')
+    #     p2p_iface = output[0]
+    #     return p2p_iface

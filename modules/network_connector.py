@@ -126,10 +126,6 @@ class NetmikoConnector:
             logger.error(f"Enable failed on {self.host}: {e}")
             raise
             
-        except Exception as e:
-            logger.error(f"Enable failed on {self.host}: {e}")
-            raise
-
     def send_command(self, command: str, **kwargs: Any) -> str:
         """Выполняет команду на устройстве и возвращает вывод."""
         if not self._connection or not self._is_alive():
