@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 # Компилируем тяжелые паттерны ОДИН раз при запуске скрипта
 IP_ROUTE_ADDR_PATTERN = re.compile(
-    r'((?:\* |\*via )\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|not in table|directly connected|Null)'
+    r'((?:\* |\*via )\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|not in table|directly connected|\bdirect\b|Null)'
 )
 PURE_IP_PATTERN = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
 
@@ -58,7 +58,7 @@ class Device():
             if 'Null' in i:
                 nexthop = None
                 return nexthop, self.is_directly_connected
-            if 'directly connected' in i or 'attached' in i:
+            if any(keyword in i for keyword in ('directly connected', 'attached', 'direct')):
                 addr_raw = (re.findall(PURE_IP_PATTERN, output))
                 # nexthop = addr_raw[0]
                 nexthop = ip

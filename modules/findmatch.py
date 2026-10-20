@@ -1,6 +1,7 @@
 import logging
 import re
-from modules.linesplit import LineSplit
+# from modules.linesplit import LineSplit
+from modules.portreplace import port_replace
 import ipaddress
 # import traceback
 
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 addr = ipaddress.ip_address
 net = ipaddress.ip_network
 
-l1 = LineSplit()
+# l1 = LineSplit()
 
 # ACL_STRUCTURE_PATTERN = re.compile(
 #     r'(?P<action>permit|deny)\s+'
@@ -23,6 +24,48 @@ ACL_STRUCTURE_PATTERN = re.compile(
     r'(?P<src>object-group\s+\S+|host\s+\S+|any\d*|\S+\s+\S+|\S+)(?:\s+(?:eq|range|gt|lt|neq)\s+\S+)?\s+'
     r'(?P<dst>object-group\s+\S+|host\s+\S+|any\d*|\S+\s+\S+|\S+)'
 )
+
+def check_port(port_to_check: int | str, line: str = None, port_op: str = None, port_val: str = None) -> bool:
+    """
+    Универсальная проверка портов. 
+    Поддерживает парсинг сырой строки ИЛИ прямую проверку оператора и значения (для кэша групп).
+    """
+    port_to_check = int(port_to_check)
+
+    # Режим 1: Быстрая прямая проверка для object-group (без парсинга и regex)
+    if port_op and port_val:
+        # Предварительно резолвим порты через port_replace (например, 'www' -> '80')
+        resolved_val = str(port_replace(port_val))
+        
+        if port_op == 'eq':
+            for port in re.split(r'[\s,]+', resolved_val):
+                if port.isdigit() and int(port) == port_to_check:
+                    return True
+        elif port_op == 'range':
+            bounds = resolved_val.split()
+            if len(bounds) == 2 and bounds[0].isdigit() and bounds[1].isdigit():
+                if int(bounds[0]) <= port_to_check <= int(bounds[1]):
+                    return True
+        return False
+
+    # Режим 2: Парсинг сырой строки ACL (классический вариант)
+    if line:
+        replaced_words = [str(port_replace(item)) for item in line.split()]
+        normalized_line = ' '.join(replaced_words)
+        
+        port_pattern = r'\beq\s+([\d\s,]+)\b|\brange\s+(\d+)\s+(\d+)\b'
+        matches = re.findall(port_pattern, normalized_line)
+        
+        for eq_ports, range_start, range_end in matches:
+            if eq_ports:
+                for port in re.split(r'[\s,]+', eq_ports):
+                    if port.isdigit() and int(port) == port_to_check:
+                        return True
+            elif range_start and range_end:
+                if int(range_start) <= port_to_check <= int(range_end):
+                    return True
+
+    return False
 
 
 def is_valid_netmask(mask_bin):
@@ -125,37 +168,22 @@ def find_match_pipeline(acl_lines, src, dst, dst_port, prot, group_cache):
         # --- Этап 4: Фильтр портов назначения (РАННИЙ) ---
         # Избавляет от проверок IP, если порт заведомо не подошел
         if is_service_group:
-            # Вытаскиваем имя группы сервисов (последнее слово в блоке proto)
             s_group_name = data['proto'].split()[-1]
             service_items = group_cache.get(s_group_name, [])
-            
             service_match = False
+            
             for item in service_items:
-                # Ожидается структура item из кэша: 
-                # {'protocol': 'tcp', 'port_op': 'eq', 'port_val': '80'}
-                
-                # Если протокол внутри группы явно не совпадает с искомым (и это не 'ip')
-                if item.get('protocol') != 'ip' and item.get('protocol') != prot:
+                if item.get('protocol') not in ('ip', prot):
                     continue
-                
-                # Генерируем виртуальную строку, которую старый l1.check_port сможет корректно распарсить
-                # Ему важно увидеть оператор и порт в хвосте строки
-                fake_port_line = f"permit {item.get('protocol')} any any {item.get('port_op')} {item.get('port_val')}"
-                
-                if l1.check_port(fake_port_line, dst_port):
+                if check_port(port_to_check=dst_port, port_op=item.get('port_op'), port_val=item.get('port_val')):
                     service_match = True
                     break
-            
-            # Если ни один порт/протокол внутри группы не подошел — сбрасываем строку
             if not service_match:
                 continue
-                
         else:
-            # Ваша оригинальная рабочая логика для обычных строк (без изменений)
-            if data['proto'] != 'ip':
-                if any(op in line_clean for op in ['eq', 'range', 'gt', 'lt']):
-                    if not l1.check_port(line_clean, dst_port):
-                        continue
+            if data['proto'] != 'ip' and any(op in line_clean for op in ['eq', 'range', 'gt', 'lt']):
+                if not check_port(port_to_check=dst_port, line=line_clean):
+                    continue
         
         # --- Этап 5: Раскрытие адресов и валидация IP через LineSplit ---
         src_options = prepare_address_string(data['src'], group_cache)
