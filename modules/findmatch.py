@@ -14,7 +14,7 @@ net = ipaddress.ip_network
 
 # ACL_STRUCTURE_PATTERN = re.compile(
 #     r'(?P<action>permit|deny)\s+'
-#     r'(?P<proto>\S+)\s+' 
+#     r'(?P<proto>\S+)\s+'
 #     r'(?P<src>object-group\s+\S+|host\s+\S+|any\d*|\S+\s+\S+|\S+)(?:\s+(?:eq|range|gt|lt|neq)\s+\S+)?\s+'
 #     r'(?P<dst>object-group\s+\S+|host\s+\S+|any\d*|\S+\s+\S+|\S+)'
 # )
